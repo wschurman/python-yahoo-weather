@@ -6,6 +6,8 @@ Fetches weather reports from Yahoo! Weather
 Written by Thomas Upton (http://www.thomasupton.com/),
 with contributions from Chris Lasher (http://igotgenes.blogspot.com/).
 
+Sensor added by William Schurman (http://wschurman.com/).
+
 This code is licensed under a BY-NC-SA Creative Commons license.
 http://creativecommons.org/licenses/by-nc-sa/3.0/us/
 
@@ -13,15 +15,38 @@ See http://www.thomasupton.com/blog/?p=202 for more information.
 """
 
 import sys
+import json
 import urllib
 from optparse import OptionParser
 from xml.dom.minidom import parse
+
+# FreeGeoIP API
+GEOIP_URL = 'http://freegeoip.net/json/'
 
 # Yahoo!'s limit on the number of days they will forecast
 DAYS_LIMIT = 2
 WEATHER_URL = 'http://xml.weather.yahoo.com/forecastrss?p=%s'
 METRIC_PARAMETER = '&u=c'
 WEATHER_NS = 'http://xml.weather.yahoo.com/ns/rss/1.0'
+
+
+def get_client_location():
+    """
+    Fetches the client's zip code based on their ip address.
+    Used for the sensor option.
+
+    :Returns:
+    -`location_code`: the client's zip code
+    """
+
+    # Geoip URL will automatically get the remote address
+    url = GEOIP_URL
+
+    try:
+        data = json.loads(urllib.urlopen(url).read())
+        return data["zipcode"]
+    except:
+        return None
 
 def get_weather(location_code, options):
     """
@@ -61,7 +86,7 @@ def get_weather(location_code, options):
 
     # Walk the DOM in order to find the forecast nodes.
     for i, node in enumerate(dom.getElementsByTagNameNS(WEATHER_NS,'forecast')):
-        
+
         # Stop if the number of obtained forecasts equals the number of requested days
         if i >= options.forecast:
             break
@@ -85,7 +110,7 @@ def get_weather(location_code, options):
         'city': ylocation.getAttribute('city'),
         'region': ylocation.getAttribute('region'),
     }
-    
+
     return weather_data
 
 def create_report(weather_data, options):
@@ -104,7 +129,7 @@ def create_report(weather_data, options):
         return None
 
     report = []
-    
+
     if options.location:
         if options.verbose:
             # Add the location header.
@@ -141,9 +166,9 @@ def create_report(weather_data, options):
 
         # Add the forecasts.
         for forecast in weather_data['forecasts']:
-            
+
             forecast['units'] = weather_data['units']
-        
+
             forecast_str = """\
   %(date)s
     High: %(high)s%(units)s
@@ -153,7 +178,7 @@ def create_report(weather_data, options):
             report.append(forecast_str)
 
     report_str = "\n".join(report)
-    
+
     return report_str
 
 def create_cli_parser():
@@ -168,11 +193,11 @@ def create_cli_parser():
     LOCATION_CODE: The LOCATION_CODE for the region of interest.
                    See http://developer.yahoo.com/weather/#req"""
     )
-    
+
     usage = "\n\n".join(usage)
-    
+
     cli_parser = OptionParser(usage)
-    
+
     # Add the CLI options
     cli_parser.add_option('-n', '--nocurr', action='store_true',
         help="suppress reporting the current weather conditions",
@@ -188,18 +213,22 @@ def create_cli_parser():
         help="show the forecast for DAYS days",
         default=0
     )
-    
+
     cli_parser.add_option('-l', '--location', action='store_true',
         help="print the location of the weather",
         default=False
-
     )
-    
+
+    cli_parser.add_option('-s', '--sensor', action='store_true',
+        help="attempt to use current location based on IP address, falls back to LOCATION_CODE argument",
+        default=False
+    )
+
     cli_parser.add_option('-m', '--metric', action='store_true',
         help="show the temperature in metric units (C)",
         default=False
     )
-    
+
     cli_parser.add_option('-v', '--verbose', action='store_true',
         help="print the weather section headers",
         default=False
@@ -219,24 +248,34 @@ def create_cli_parser():
         help="print the weather conditions to a specified file name",
         default=""
     )
-    
+
     return cli_parser
 
 def main(argv):
 
     # Create the command line parser.
     cli_parser = create_cli_parser()
-    
+
     # Get the options and arguments.
     opts, args = cli_parser.parse_args(argv)
 
     # Check that an argument was passed.
-    if len(args) < 1:
+    if len(args) < 1 and not opts.sensor:
         cli_parser.error("Not enough arguments supplied.")
 
+    location_code = None
+
     # Get the location code
-    location_code = args[0]
-    
+    if opts.sensor:
+        location_code = get_client_location()
+
+    # Fall back to location argument
+    if not location_code:
+        if len(args) < 1:
+            cli_parser.error("Not enough arguments supplied.")
+        else:
+            location_code = args[0]
+
     # Limit the requested forecast days.
     if opts.forecast > DAYS_LIMIT or opts.forecast < 0:
         cli_parser.error("Days to forecast must be between 0 and %d" % DAYS_LIMIT)

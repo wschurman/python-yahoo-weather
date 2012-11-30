@@ -4,10 +4,11 @@ Fetches weather reports from [Yahoo! Weather][yw].
 
 [yw]: http://weather.yahoo.com/
 
-Written by [Thomas Upton][tu] with contributions from [Chris Lasher][cl].
+Written by [Thomas Upton][tu] with contributions from [Chris Lasher][cl] and [William Schurman] [ws].
 
 [tu]: http://www.thomasupton.com/
 [cl]: http://igotgenes.blogspot.com/
+[ws]: http://wschurman.com/
 
 This code is licensed under a [BY-NC-SA Creative Commons license][cc].
 
@@ -17,7 +18,7 @@ See [the blog post][blog] for more information.
 
 [blog]: http://www.thomasupton.com/blog/?p=202
 
-Usage: `weather.py [options] location_code` 
+Usage: `weather.py [options] location_code`
 
     $ weather.py --help
 for options and their descriptions.
@@ -38,6 +39,10 @@ could not be loaded, the previous contents of the file are shown.
 
 ### Default output
     $ weather.py 24060
+    25F and Partly Cloudy
+
+### Geolocation Sensor
+    $ weather.py -s
     25F and Partly Cloudy
 
 ### Metric units
